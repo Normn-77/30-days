@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Planner</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#161613">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Daily Planner">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="shell">
+
+  <!-- ── Sidebar ─────────────────────────── -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-title">Daily Planner</div>
+      <div class="brand-sub">Habit &amp; Schedule</div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" data-tab="today">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="2" width="12" height="12" rx="2"/>
+          <line x1="5" y1="5" x2="11" y2="5"/>
+          <line x1="5" y1="8" x2="11" y2="8"/>
+          <line x1="5" y1="11" x2="8" y2="11"/>
+        </svg>
+        Hari Ini
+      </button>
+      <button class="nav-item" data-tab="schedule">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="6"/>
+          <line x1="8" y1="4" x2="8" y2="8"/>
+          <line x1="8" y1="8" x2="11" y2="10"/>
+        </svg>
+        Jadwal
+      </button>
+      <button class="nav-item" data-tab="habits">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <polyline points="3,8 6,11 13,4"/>
+        </svg>
+        Kebiasaan
+      </button>
+      <button class="nav-item" data-tab="stats">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="9" width="3" height="5"/>
+          <rect x="6.5" y="6" width="3" height="8"/>
+          <rect x="11" y="3" width="3" height="11"/>
+        </svg>
+        Statistik
+      </button>
+      <button class="nav-item" data-tab="settings">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="2"/>
+          <path d="M14 8a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z"/>
+          <path d="M8 2v2m0 8v2M2 8h2m8 0h2"/>
+        </svg>
+        Pengaturan
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sb-date-day" id="sb-day"></div>
+      <div class="sb-date-rest" id="sb-rest"></div>
+    </div>
+  </aside>
+
+  <!-- ── Main ────────────────────────────── -->
+  <main class="main">
+
+    <!-- TODAY -->
+    <section class="tab active" id="tab-today">
+      <div class="page-title" id="today-title"></div>
+      <div class="page-sub" id="today-sub"></div>
+
+      <div class="summary-row" id="today-summary"></div>
+
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span>Progress hari ini</span>
+          <strong id="pct-label">0%</strong>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="section-head">Kebiasaan Hari Ini</div>
+      <div class="habit-list" id="today-habits"></div>
+
+      <div class="section-head mt36">Jadwal hari ini</div>
+      <div class="sched-list" id="today-schedule"></div>
+    </section>
+
+    <!-- SCHEDULE -->
+    <section class="tab" id="tab-schedule">
+      <div class="page-title">Jadwal Harian</div>
+      <div class="page-sub">Atur blok waktu aktivitasmu.</div>
+
+      <div class="sched-list" id="schedule-list"></div>
+
+      <div class="add-row mt16">
+        <input type="time" id="new-time" value="09:00">
+        <input type="number" id="new-dur" min="5" max="720" value="60" placeholder="Durasi (menit)">
+        <input type="text" id="new-sched-title" placeholder="Nama aktivitas…" maxlength="60">
+        <button class="btn" id="btn-add-sched">+ Tambah</button>
+      </div>
+    </section>
+
+    <!-- HABITS -->
+    <section class="tab" id="tab-habits">
+      <div class="page-title">Kebiasaan</div>
+      <div class="page-sub">Pantau konsistensimu 7 hari terakhir.</div>
+
+      <div class="hgrid-wrap">
+        <div class="hgrid-header" id="hgrid-header"></div>
+        <div id="habits-grid"></div>
+      </div>
+
+      <div class="add-row mt16" style="flex-wrap: wrap; gap: 8px;">
+        <input type="text" id="new-habit-name" placeholder="Tambah kebiasaan baru…" maxlength="60" style="min-width: 200px;">
+        
+        <select id="new-habit-type" style="width: 140px; padding: 9px 12px; font-family: var(--sans); font-size: 13px; border: 1px solid var(--border); border-radius: var(--r); background: var(--bg-card); color: var(--text-1); outline: none;">
+          <option value="daily">Setiap Hari</option>
+          <option value="weekly">Hari Tertentu</option>
+          <option value="interval">Interval Hari</option>
+        </select>
+
+        <input type="text" id="new-habit-days" placeholder="Misal: 1,3,5 (Sen,Rab,Jum)" style="display:none; width: 180px;" title="0=Minggu, 1=Senin, 2=Selasa, dst">
+        
+        <input type="number" id="new-habit-interval" placeholder="Tiap x hari" min="2" max="30" style="display:none; width: 120px;">
+
+        <button class="btn" id="btn-add-habit">+ Tambah</button>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section class="tab" id="tab-stats">
+      <div class="page-title">Statistik</div>
+      <div class="page-sub">Gambaran performa kebiasaanmu.</div>
+
+      <div class="summary-row" id="stats-summary"></div>
+
+      <div class="section-head mt28">Completion rate — 30 hari terakhir</div>
+      <div class="chart-wrap" id="stats-bar-chart"></div>
+
+      <div class="section-head mt36">Per kebiasaan</div>
+      <div class="stats-table-wrap" id="stats-table"></div>
+
+      <div class="section-head mt36">Heatmap keseluruhan — 30 hari terakhir</div>
+      <div class="heatmap-wrap" id="stats-heatmap"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="tab" id="tab-settings">
+      <div class="page-title">Pengaturan</div>
+      <div class="page-sub">Kustomisasi tampilan aplikasimu.</div>
+
+      <div class="section-head">Tampilan</div>
+      <div class="add-row mt16" style="flex-direction: column; align-items: flex-start; gap: 12px;">
+        <label style="font-size: 13px; color: var(--text-2);">Pilih Font Header:</label>
+        <select id="setting-font-header" style="width: 200px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--r); background: var(--bg-card); color: var(--text-1); outline: none;">
+          <option value="var(--serif)">Serif (Playfair Display)</option>
+          <option value="var(--sans)">Sans (DM Sans)</option>
+          <option value="var(--mono)">Monospace (System)</option>
+        </select>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(() => console.log('SW registered'))
+        .catch(err => console.warn('SW failed:', err));
+    });
+  }
+</script>
+</body>
+</html>
