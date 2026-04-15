@@ -54,28 +54,43 @@ const DAYS_ID   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 const DAYS_SH   = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 const MONTHS_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
+/* FIX: Gunakan tanggal LOKAL, bukan UTC.
+   toISOString() selalu UTC — di Surabaya (UTC+7) sebelum jam 07:00 pagi
+   masih mengembalikan tanggal kemarin, sehingga centangan tersimpan
+   di key yang salah dan tidak pernah ter-reset. */
+function localDateKey(date) {
+  const d = date || new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey(new Date());
 }
 
 function daysAgoKey(n) {
   const d = new Date();
   d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+  return localDateKey(d);
 }
 
 /* ── Habit Frequency Logic ──────────────── */
 function isHabitDue(habit, dateStr) {
   if (!habit.freq) return true;
 
-  const d = new Date(dateStr);
-  
+  /* FIX: new Date("YYYY-MM-DD") diparse sebagai UTC midnight,
+     sehingga d.getDay() bisa salah satu hari di timezone lokal.
+     Tambahkan T00:00:00 agar diparse sebagai waktu lokal. */
+  const d = new Date(dateStr + 'T00:00:00');
+
   if (habit.freq.type === 'daily') return true;
   if (habit.freq.type === 'weekly') return habit.freq.value.includes(d.getDay());
   if (habit.freq.type === 'interval') {
-    const start = new Date(habit.createdAt || dateStr);
-    start.setHours(0,0,0,0);
-    d.setHours(0,0,0,0);
+    const start = new Date((habit.createdAt || dateStr).slice(0, 10) + 'T00:00:00');
+    start.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
     const diffDays = Math.floor(Math.abs(d - start) / (1000 * 60 * 60 * 24));
     return diffDays % habit.freq.value === 0;
   }
