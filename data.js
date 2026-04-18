@@ -6,9 +6,9 @@ const K_FONT = 'dp3_font_header';
 
 /* ── Default data ────────────────────── */
 const DEFAULT_HABITS = [
-  { id: 1, name: 'Meditasi pagi', freq: { type: 'daily' }, createdAt: new Date().toISOString() },
-  { id: 2, name: 'Olahraga 30 menit', freq: { type: 'daily' }, createdAt: new Date().toISOString() },
-  { id: 3, name: 'Baca buku', freq: { type: 'daily' }, createdAt: new Date().toISOString() }
+  { id: 1, name: 'Meditasi pagi',    freq: { type: 'daily' }, createdAt: localDateKey(new Date()) },
+  { id: 2, name: 'Olahraga 30 menit',freq: { type: 'daily' }, createdAt: localDateKey(new Date()) },
+  { id: 3, name: 'Baca buku',        freq: { type: 'daily' }, createdAt: localDateKey(new Date()) }
 ];
 
 const DEFAULT_SCHEDULE = [
@@ -32,9 +32,9 @@ function lsSave() {
 
 /* ── State object ────────────────────── */
 const State = {
-  habits:   lsGet(K_H)   || DEFAULT_HABITS,
-  schedule: lsGet(K_S)   || DEFAULT_SCHEDULE,
-  checks:   lsGet(K_C)   || {},
+  habits:     lsGet(K_H)   || DEFAULT_HABITS,
+  schedule:   lsGet(K_S)   || DEFAULT_SCHEDULE,
+  checks:     lsGet(K_C)   || {},
   fontHeader: localStorage.getItem(K_FONT) || 'var(--serif)'
 };
 
@@ -54,41 +54,46 @@ const DAYS_ID   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
 const DAYS_SH   = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 const MONTHS_ID = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 
-/* FIX: Gunakan tanggal LOKAL, bukan UTC.
-   toISOString() selalu UTC — di Surabaya (UTC+7) sebelum jam 07:00 pagi
-   masih mengembalikan tanggal kemarin, sehingga centangan tersimpan
-   di key yang salah dan tidak pernah ter-reset. */
+/*
+ * Selalu gunakan tanggal LOKAL, bukan UTC.
+ * toISOString() selalu UTC — di WIB (UTC+7) sebelum jam 07:00 pagi
+ * masih mengembalikan tanggal kemarin, sehingga centangan tersimpan
+ * di key yang salah dan tidak pernah ter-reset.
+ */
 function localDateKey(date) {
   const d = date || new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const y  = d.getFullYear();
+  const m  = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${dd}`;
 }
 
-function todayKey() {
-  return localDateKey(new Date());
-}
+function todayKey()      { return localDateKey(new Date()); }
+function daysAgoKey(n)   { const d = new Date(); d.setDate(d.getDate() - n); return localDateKey(d); }
 
-function daysAgoKey(n) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return localDateKey(d);
+/*
+ * Ambil bagian tanggal (YYYY-MM-DD) dari createdAt,
+ * yang bisa berupa ISO string ("2026-04-18T...") atau sudah dalam format YYYY-MM-DD.
+ */
+function habitCreatedKey(habit) {
+  return (habit.createdAt || '1970-01-01').slice(0, 10);
 }
 
 /* ── Habit Frequency Logic ──────────────── */
 function isHabitDue(habit, dateStr) {
   if (!habit.freq) return true;
 
-  /* FIX: new Date("YYYY-MM-DD") diparse sebagai UTC midnight,
-     sehingga d.getDay() bisa salah satu hari di timezone lokal.
-     Tambahkan T00:00:00 agar diparse sebagai waktu lokal. */
+  /*
+   * new Date("YYYY-MM-DD") diparse sebagai UTC midnight,
+   * sehingga d.getDay() bisa salah satu hari di timezone lokal.
+   * Tambahkan T00:00:00 agar diparse sebagai waktu lokal.
+   */
   const d = new Date(dateStr + 'T00:00:00');
 
-  if (habit.freq.type === 'daily') return true;
-  if (habit.freq.type === 'weekly') return habit.freq.value.includes(d.getDay());
+  if (habit.freq.type === 'daily')   return true;
+  if (habit.freq.type === 'weekly')  return habit.freq.value.includes(d.getDay());
   if (habit.freq.type === 'interval') {
-    const start = new Date((habit.createdAt || dateStr).slice(0, 10) + 'T00:00:00');
+    const start = new Date(habitCreatedKey(habit) + 'T00:00:00');
     start.setHours(0, 0, 0, 0);
     d.setHours(0, 0, 0, 0);
     const diffDays = Math.floor(Math.abs(d - start) / (1000 * 60 * 60 * 24));
@@ -110,44 +115,99 @@ function toggleCheck(hid) {
 }
 
 /* ── Streak calculator ───────────────── */
+/*
+ * FIX: Sebelumnya streak tidak memperhitungkan:
+ *   1. createdAt — hari sebelum habit dibuat ikut dihitung
+ *   2. isHabitDue — hari non-jadwal seharusnya dilewati, bukan memutus streak
+ */
 function getStreak(hid) {
-  let streak = 0;
+  const habit = State.habits.find(h => h.id === hid);
+  if (!habit) return 0;
+  const createdKey  = habitCreatedKey(habit);
   const startOffset = isChecked(hid, todayKey()) ? 0 : 1;
+  let streak = 0;
+
   for (let i = startOffset; i < 400; i++) {
-    if (isChecked(hid, daysAgoKey(i))) streak++;
+    const dk = daysAgoKey(i);
+    if (dk < createdKey) break;              // sebelum habit dibuat → stop
+    if (!isHabitDue(habit, dk)) continue;   // bukan hari jadwal → lewati, jangan putus streak
+    if (isChecked(hid, dk)) streak++;
     else break;
   }
   return streak;
 }
 
 function getBestStreak(hid) {
+  const habit = State.habits.find(h => h.id === hid);
+  if (!habit) return 0;
+  const createdKey = habitCreatedKey(habit);
   let best = 0, cur = 0;
-  for (let i = 0; i < 365; i++) {
-    if (isChecked(hid, daysAgoKey(i))) { cur++; best = Math.max(best, cur); }
+
+  // Iterasi dari hari paling lama ke hari ini
+  for (let i = 364; i >= 0; i--) {
+    const dk = daysAgoKey(i);
+    if (dk < createdKey) continue;          // sebelum habit dibuat → skip
+    if (!isHabitDue(habit, dk)) continue;   // bukan hari jadwal → lewati
+    if (isChecked(hid, dk)) { cur++; best = Math.max(best, cur); }
     else cur = 0;
   }
   return best;
 }
 
 /* ── Completion rate helpers ─────────── */
+/*
+ * FIX: completionRate sebelumnya membagi done/totalDays tanpa memperhatikan
+ *   createdAt dan isHabitDue — habit baru selalu punya rate rendah karena
+ *   hari-hari sebelum dibuat dihitung sebagai miss.
+ */
 function completionRate(hid, days) {
-  let done = 0;
+  const habit = State.habits.find(h => h.id === hid);
+  if (!habit) return 0;
+  const createdKey = habitCreatedKey(habit);
+  let done = 0, total = 0;
+
   for (let i = 0; i < days; i++) {
-    if (isChecked(hid, daysAgoKey(i))) done++;
+    const dk = daysAgoKey(i);
+    if (dk < createdKey)        continue;   // sebelum habit dibuat → skip
+    if (!isHabitDue(habit, dk)) continue;   // bukan hari jadwal → skip
+    total++;
+    if (isChecked(hid, dk)) done++;
   }
-  return days > 0 ? Math.round((done / days) * 100) : 0;
+  return total > 0 ? Math.round((done / total) * 100) : 0;
 }
 
+/*
+ * FIX: dailyOverallRate sebelumnya membagi dengan SEMUA habit,
+ *   termasuk habit yang belum dibuat pada hari tersebut.
+ *   Sekarang hanya habit yang sudah ada dan dijadwalkan pada hari itu yang dihitung.
+ */
 function dailyOverallRate(daysAgo) {
-  if (!State.habits.length) return 0;
   const dk = daysAgoKey(daysAgo);
-  const done = State.habits.filter(h => isChecked(h.id, dk)).length;
-  return Math.round((done / State.habits.length) * 100);
+  const dueHabits = State.habits.filter(h => {
+    return habitCreatedKey(h) <= dk && isHabitDue(h, dk);
+  });
+  if (!dueHabits.length) return 0;
+  const done = dueHabits.filter(h => isChecked(h.id, dk)).length;
+  return Math.round((done / dueHabits.length) * 100);
+}
+
+/* ── Bersihkan data centang lama (> 400 hari) ──
+ * Penting untuk penggunaan jangka panjang agar localStorage tidak membengkak.
+ */
+function cleanOldChecks() {
+  const cutoff = daysAgoKey(400);
+  let changed  = false;
+  Object.keys(State.checks).forEach(dk => {
+    if (dk < cutoff) { delete State.checks[dk]; changed = true; }
+  });
+  if (changed) lsSave();
 }
 
 /* ── Utilities ───────────────────────── */
 function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function t2m(t) {
