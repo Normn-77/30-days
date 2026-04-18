@@ -50,7 +50,7 @@ function renderToday() {
       const chk    = isChecked(h.id, dk);
       const streak = getStreak(h.id);
       let freqLabel = '';
-      if (h.freq && h.freq.type === 'weekly') freqLabel = ' (Mingguan)';
+      if (h.freq && h.freq.type === 'weekly')   freqLabel = ' (Mingguan)';
       if (h.freq && h.freq.type === 'interval') freqLabel = ` (Tiap ${h.freq.value} hari)`;
 
       return `
@@ -158,7 +158,7 @@ function renderHabitsTab() {
 
 document.getElementById('new-habit-type').addEventListener('change', (e) => {
   const type = e.target.value;
-  document.getElementById('new-habit-days').style.display = type === 'weekly' ? 'block' : 'none';
+  document.getElementById('new-habit-days').style.display     = type === 'weekly'   ? 'block' : 'none';
   document.getElementById('new-habit-interval').style.display = type === 'interval' ? 'block' : 'none';
 });
 
@@ -169,15 +169,16 @@ document.getElementById('btn-add-habit').addEventListener('click', () => {
 
   let freqData = { type: 'daily', value: null };
   if (type === 'weekly') {
-    const daysStr = document.getElementById('new-habit-days').value;
+    const daysStr  = document.getElementById('new-habit-days').value;
     freqData.value = daysStr.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
-    freqData.type = 'weekly';
+    freqData.type  = 'weekly';
   } else if (type === 'interval') {
     freqData.value = parseInt(document.getElementById('new-habit-interval').value) || 2;
-    freqData.type = 'interval';
+    freqData.type  = 'interval';
   }
 
-  State.habits.push({ id: Date.now(), name: name, freq: freqData, createdAt: todayKey() });
+  // createdAt disimpan sebagai YYYY-MM-DD (lokal) agar konsisten dengan key system
+  State.habits.push({ id: Date.now(), name, freq: freqData, createdAt: todayKey() });
   document.getElementById('new-habit-name').value = '';
   lsSave(); render();
 });
@@ -270,6 +271,40 @@ function render() {
   document.getElementById('setting-font-header').value = State.fontHeader;
 }
 
+/* ── Deteksi pergantian hari ──────────────
+ *
+ * Tujuan: Saat user membuka app setelah tengah malam,
+ * halaman otomatis refresh ke tampilan hari baru
+ * tanpa perlu reload manual.
+ *
+ * Dua mekanisme:
+ *   1. visibilitychange — menangkap saat user kembali ke tab/app
+ *      setelah lama tidak aktif (misalnya buka di pagi hari)
+ *   2. setInterval setiap 60 detik — untuk kasus app terus terbuka
+ *      melewati tengah malam
+ */
+let _lastRenderedDate = todayKey();
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    const currentDate = todayKey();
+    if (currentDate !== _lastRenderedDate) {
+      _lastRenderedDate = currentDate;
+      render(); // Hari baru → render ulang semua (centang otomatis reset karena key berubah)
+    }
+  }
+});
+
+setInterval(() => {
+  const currentDate = todayKey();
+  if (currentDate !== _lastRenderedDate) {
+    _lastRenderedDate = currentDate;
+    render();
+  } else {
+    renderToday(); // Update saja tampilan hari ini (jadwal aktif, dll.)
+  }
+}, 60000);
+
 /* ── Init ─────────────────────────────── */
+cleanOldChecks(); // Hapus data centang > 400 hari untuk efisiensi jangka panjang
 render();
-setInterval(renderToday, 60000); 
