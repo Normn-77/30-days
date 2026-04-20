@@ -176,6 +176,31 @@
           <option value="var(--mono)">Monospace (System)</option>
         </select>
       </div>
+
+      <div class="section-head mt36">Backup Data</div>
+      <div class="backup-card mt16">
+        <div class="backup-block">
+          <div class="backup-label">Export Data</div>
+          <div class="backup-desc">Unduh semua data (kebiasaan, jadwal, check-in) sebagai file JSON. Gunakan untuk backup atau pindah ke perangkat lain.</div>
+          <button class="btn btn-export" onclick="exportData()">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><path d="M8 2v8M5 7l3 3 3-3"/><path d="M3 12h10"/></svg>
+            Export JSON
+          </button>
+        </div>
+
+        <div class="backup-divider"></div>
+
+        <div class="backup-block">
+          <div class="backup-label">Import Data</div>
+          <div class="backup-desc">Pulihkan data dari file backup. <strong style="color:var(--text-2)">Perhatian:</strong> data saat ini akan ditimpa sepenuhnya.</div>
+          <label class="btn btn-import" for="import-file-input">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><path d="M8 10V2M5 5l3-3 3 3"/><path d="M3 12h10"/></svg>
+            Import JSON
+          </label>
+          <input type="file" id="import-file-input" accept=".json" style="display:none;"
+            onchange="importData(this.files[0]); this.value='';">
+        </div>
+      </div>
     </section>
 
   </main>
